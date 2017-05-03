@@ -1,4 +1,5 @@
 import sys
+import struct
 from PIL import Image, ImageDraw
 from nl_palette import EGAPalette
 
@@ -84,6 +85,8 @@ class AGIPicture():
             self.ink_priority = EGAPalette.COLORS[command.get_options()]
             if command.get_options() < 4:
                 self.ink_control = self.ink_priority
+            else:
+                self.ink_control = None
         elif command.get_command_type() == 'priority off':
             self.ink_priority = None
             self.ink_control = None
@@ -179,41 +182,21 @@ class AGIPicture():
             self.canvas_control.line([(x, y), (x, y)], self.ink_control)
 
         for movement in sequence[2:]:
-
-            #alternate approach
-            #value = struct.unpack("B", movement)
-            #flags = {"x-neg": (0,128), "y-neg": (0,8)}
-
-            #bool(value[(flags['x-neg'][0])] & flags['x-neg'][1])
-            #bool(value[(flags['y-neg'][0])] & flags['y-neg'][1])
-
-            #yc = value[(flags['x-neg'][0])] & 7
-            #xc = value[(flags['x-neg'][0])] & 112 >> 4
-
-            #((value[(flags['x-neg'][0])] & 112) >> 4) * (-1 if xn else 1)
-           
-
-
             nx = 1
             ny = 1
             
             lx = x
             ly = y
-            breakdown = bin(movement).split('b')[1]
 
-            if len(breakdown) == 8:
-                nx = -1
-                breakdown = breakdown[1:]
-            xc = nx * (int(breakdown[0:3],2))
+            breakdown = struct.unpack("B", chr(movement))
+            bool(breakdown[0] & 128)
+
+            
+            xc = ((breakdown[0] & 112) >> 4) * (-1 if bool(breakdown[0] & 128) else 1)
+            yc = (breakdown[0] & 7) * (-1 if bool(breakdown[0] & 8) else 1)
+
             x = x + xc
-
-            if breakdown[3] == '1':
-                ny = -1
-
-            yc = ny * (int(breakdown[4:7],2))
             y = y + yc
-
-            print (xc, yc)
 
             if self.ink_visual is not None:
                 self.canvas_visual.line([(x, y), (lx, ly)], self.ink_visual)
@@ -225,22 +208,11 @@ class AGIPicture():
                 self.canvas_control.line([(x, y), (lx, ly)], self.ink_control)
 
     def process_pen(self, brush_type):
-        brushbits = bin(brush_type).split('b')[1]
-        while len(brushbits) > 6:
-            brushbits = brushbits[1:]
+        print brush_type        
 
-        print brushbits
-        if (brushbits[0] == '1'):
-            self.brush_solid = True
-        else:
-            self.brush_solid = False
-
-        if (brushbits[1] == '1'):
-            self.brush_rect = True
-        else:
-            self.brush_rect = False
-
-        self.brush_size = int(brushbits[2:4],2)
+        self.brush_solid    = bool(brush_type & 32)
+        self.brush_rect     = bool(brush_type & 16)
+        self.brush_size     = brush_type & 7
 
         print 'solid:' + str(self.brush_solid)
         print 'rect:' + str(self.brush_rect)
@@ -265,12 +237,24 @@ class AGIPicture():
                     self.px_visual[px, py] = self.ink_visual
 
                     if self.ink_priority is not None:
-                        self.px_priority = self.ink_priority
+                        self.px_priority[px, py] = self.ink_priority
+
+                    if self.ink_control is not None:
+                        self.px_control[px, py] = self.ink_control
 
             elif self.ink_priority is not None:
                 if self.px_priority[px, py] == EGAPalette.RED:
                     add_neighbours = True
                     self.px_priority[px, py] = self.ink_priority
+
+                if self.ink_control is not None:
+                    self.px_control[px, py] = self.ink_control
+                    
+            elif self.ink_control is not None:
+                if self.px_priority[px, py] == EGAPalette.LIGHTGREY:
+                    add_neighbours = True
+                    self.px_control[px, py] = self.ink_control
+
 
             if add_neighbours:
                 if px > 0:
