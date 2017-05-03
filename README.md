@@ -1,0 +1,2 @@
+# mAGIc
+My AGI Code
