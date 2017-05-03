@@ -190,6 +190,9 @@ class AGIPicture():
             #yc = value[(flags['x-neg'][0])] & 7
             #xc = value[(flags['x-neg'][0])] & 112 >> 4
 
+            #((value[(flags['x-neg'][0])] & 112) >> 4) * (-1 if xn else 1)
+           
+
 
             nx = 1
             ny = 1
