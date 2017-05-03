@@ -179,6 +179,18 @@ class AGIPicture():
             self.canvas_control.line([(x, y), (x, y)], self.ink_control)
 
         for movement in sequence[2:]:
+
+            #alternate approach
+            #value = struct.unpack("B", movement)
+            #flags = {"x-neg": (0,128), "y-neg": (0,8)}
+
+            #bool(value[(flags['x-neg'][0])] & flags['x-neg'][1])
+            #bool(value[(flags['y-neg'][0])] & flags['y-neg'][1])
+
+            #yc = value[(flags['x-neg'][0])] & 7
+            #xc = value[(flags['x-neg'][0])] & 112 >> 4
+
+
             nx = 1
             ny = 1
             
