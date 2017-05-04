@@ -1,9 +1,158 @@
 import sys
 import struct
 from PIL import Image, ImageDraw
-from nl_palette import EGAPalette
+from palettes import EGAPalette
+from agi_constants import *
 
-class AGIPicture():
+
+def get_coordinates(coords):
+    x = ord(coords[0])
+    y = ord(coords[1])
+    return x, y
+
+class AGIPicture(object):
+        
+    def __init__(self, filename=None, width=160, height=168):
+        self.draw_commands = []
+        self.stream = open(filename, "rb")
+        self.load()
+    
+    def load(self):
+        position = 0
+        bit_buffer = None
+
+        while True:
+            byte     = self.stream.read(1)
+            position = position + 1
+            if byte:                
+                if byte >= IS_COMMAND:
+                    if bit_buffer is not None:
+                        self.add_picture_command(bit_buffer)
+                    bit_buffer = byte
+                else:
+                    bit_buffer = bit_buffer + byte
+            else:
+                if bit_buffer is not None:
+                    self.add_picture_command(bit_buffer)       
+                break
+
+
+    def add_picture_command(self, stream):
+        com = AGIPictureCommand(stream)
+        self.draw_commands.append(com)
+
+class AGIPictureCommand(object):
+    def __init__(self, bytes):
+        self.command_type = COMMAND_DEFS[ord(bytes[0])]
+
+        self.color = None
+        self.coordinates = []
+        self.load(bytes[1:])
+
+        self.brush_solid = None
+        self.brush_rect = None
+        self.brush_size = None
+        
+    def load(self, bytes):
+        if self.command_type == COLOR or self.command_type == PRIORITY:
+            self.color = bytes[0]
+        elif self.command_type == Y_CORNER or self.command_type == X_CORNER:
+            self.load_command_corner(bytes)
+        elif self.command_type == LINE:
+            self.load_command_line(bytes)
+        elif self.command_type == SHORT_LINE:
+            self.load_command_short(bytes)
+        elif self.command_type == FILL:
+            self.load_command_fill(bytes)
+        elif self.command_type == PEN:
+            self.load_command_pen(bytes)
+        elif self.command_type == PLOT:
+            self.load_command_plot(bytes)
+
+    def load_command_corner(self, bytes):
+        alternate = (False if self.command_type == Y_CORNER else True)
+        x, y = get_coordinates(bytes[0:2])
+        self.coordinates.append((x, y, x, y))
+
+        for new_coordinate in bytes[2:]:
+            lx = x
+            ly = y
+            if alternate:
+                x = ord(new_coordinate)
+            else:
+                y = ord(new_coordinate)
+            alternate = not alternate
+            self.coordinates.append((lx, ly, x, y))
+
+    def load_command_line(self, bytes):
+        x, y = get_coordinates(bytes[0:2])
+        self.coordinates.append((x, y, x, y))
+
+        bytes = bytes[2:]
+        while len(bytes) > 1:
+            lx = x
+            ly = y
+            x, y = get_coordinates(bytes[0:2])
+            self.coordinates.append((lx, ly, x, y))
+            bytes = bytes[2:]
+        
+    def load_command_short(self, bytes):
+        x, y = get_coordinates(bytes[0:2])
+        self.coordinates.append((x, y, x, y))
+
+        for movement in bytes[2:]:
+            lx = x
+            ly = y
+
+            breakdown = ord(movement)
+            
+            x = x + ((breakdown & 112) >> 4) * (-1 if bool(breakdown & 128) else 1)
+            y = y + (breakdown & 7) * (-1 if bool(breakdown & 8) else 1)
+
+            self.coordinates.append((lx, ly, x, y))
+
+        
+    def load_command_fill(self, bytes):
+        while len(bytes) > 1:
+            self.coordinates.append((get_coordinates(bytes[0:2])))
+            bytes = bytes[2:]
+        
+    def load_command_pen(self, bytes):
+        brush_type = ord(bytes[0])
+        self.brush_solid = bool(brush_type & 32)
+        self.brush_rect = bool(brush_type & 16)
+        self.brush_size = brush_type & 7
+        
+    def load_command_plot(self, bytes):
+        while len(bytes) > 1:
+            self.coordinates.append((get_coordinates(bytes[0:2])))
+            bytes = bytes[2:]
+
+                
+def run():
+    pictest = AGIPicture('picture.airbrush')     
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(run())
+    
+    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class NLAGIPicture():
     def __init__(self, filename=None, width=160, height=168):
         self.commands = []
         self.img_visual     = Image.new('RGB', (width, height), EGAPalette.WHITE)
@@ -207,6 +356,12 @@ class AGIPicture():
             if self.ink_control is not None:
                 self.canvas_control.line([(x, y), (lx, ly)], self.ink_control)
 
+
+    def draw_agi_line(self, canvas, fr_coords, to_coords):
+        # canvas is the pixel array
+        print '#placeholder#'
+        
+
     def process_pen(self, brush_type):
         print brush_type        
 
@@ -286,7 +441,7 @@ class AGIPicture():
         output.save(filename)
 
 
-class DrawCommand():
+class NLDrawCommand():
     def __init__(self, command_byte):
         self._command_type = 'invalid'
         self._options = []
