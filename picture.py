@@ -13,6 +13,13 @@ def get_coordinates(coords):
 class AGIPicture(object):
         
     def __init__(self, filename=None, width=160, height=168):
+        self.width          = width
+        self.height         = height
+        self.is_rendered    = False
+
+        self.scale_x        = 4
+        self.scale_y        = 2
+        
         self.draw_commands = []
         self.stream = open(filename, "rb")
         self.load()
@@ -36,10 +43,38 @@ class AGIPicture(object):
                     self.add_picture_command(bit_buffer)       
                 break
 
-
     def add_picture_command(self, stream):
         com = AGIPictureCommand(stream)
         self.draw_commands.append(com)
+
+    def process_commands(self):
+        # set flag to show we have processed the draw commands already
+        self.is_rendered = True
+
+        self.img_visual     = Image.new('RGB', (width, height), EGAPalette.WHITE)
+        self.img_priority   = Image.new('RGB', (width, height), EGAPalette.RED)
+        self.img_control    = Image.new('RGB', (width, height), EGAPalette.LIGHTGREY)
+                  
+        # set up pixel access
+        self.px_visual = self.img_visual.load()
+        self.px_priority = self.img_priority.load()
+        self.px_control = self.img_control.load()
+
+        # set up draw access
+        self.canvas_visual   = ImageDraw.Draw(self.img_visual)
+        self.canvas_priority = ImageDraw.Draw(self.img_priority)
+        self.canvas_control  = ImageDraw.Draw(self.img_control)
+
+        # set up layer draw colours
+        self.ink_visual     = None
+        self.ink_priority   = None
+        self.ink_control    = None
+
+        for command in self.draw_commands:
+            self.process_command(command)                
+
+
+
 
 class AGIPictureCommand(object):
     def __init__(self, bytes):
@@ -75,8 +110,7 @@ class AGIPictureCommand(object):
         self.coordinates.append((x, y, x, y))
 
         for new_coordinate in bytes[2:]:
-            lx = x
-            ly = y
+            lx, ly = (x, y)
             if alternate:
                 x = ord(new_coordinate)
             else:
@@ -90,8 +124,7 @@ class AGIPictureCommand(object):
 
         bytes = bytes[2:]
         while len(bytes) > 1:
-            lx = x
-            ly = y
+            lx, ly = (x, y)
             x, y = get_coordinates(bytes[0:2])
             self.coordinates.append((lx, ly, x, y))
             bytes = bytes[2:]
@@ -101,8 +134,7 @@ class AGIPictureCommand(object):
         self.coordinates.append((x, y, x, y))
 
         for movement in bytes[2:]:
-            lx = x
-            ly = y
+            lx, ly = (x, y)
 
             breakdown = ord(movement)
             
