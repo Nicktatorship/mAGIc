@@ -10,7 +10,7 @@ def parse(com, inp):
     if (com == 'v'):
         # view
         myconf.inty = int(inp)
-        return 'INTY SET TO ' + str(inp)
+        return 'Sets Register\t\tINTY SET TO ' + str(inp)
 
     elif (com == 's'):
         #square
@@ -20,10 +20,10 @@ def parse(com, inp):
         return parse('v',(inp))
 
     elif (com == 'l'):
-        return 'STRING LENGTH: ' + str(len(inp))
+        return 'Returns Length\t\tSTRING LENGTH: ' + str(len(inp))
 
     elif (com == 'r'):
-        return 'INTY VAL IS ' + str(myconf.inty)
+        return 'Reads Int\t\tINTY VAL IS ' + str(myconf.inty)
 
     elif (com == 'b'):
         comps = {'m': (0, 'EQ'), 'g': (-1, 'GT'), 'l': (1, 'LT')}
@@ -33,7 +33,7 @@ def parse(com, inp):
         true_com  = inp[2:4]
         false_com = inp[4:6]
 
-        feedback = 'COMPARE (' + comps[comp_type][1] + ' ' + str(comp_targ) + ')'
+        feedback = 'Branches things\t\tCOMPARE (' + comps[comp_type][1] + ' ' + str(comp_targ) + ')'
         feedback = feedback + 'True >> ' + true_com + ' ' + 'False >> ' + false_com
         
         if (myconf.inty.__cmp__(comp_targ) == comps[comp_type][0]):
