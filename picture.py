@@ -10,9 +10,9 @@ def get_coordinates(coords):
     y = ord(coords[1])
     return x, y
 
-class AGIPicture(object):
-        
+class AGIPicture(object):     
     def __init__(self, filename=None, width=160, height=168):
+        self.palette        = EGAPalette
         self.width          = width
         self.height         = height
         self.is_rendered    = False
@@ -51,9 +51,9 @@ class AGIPicture(object):
         # set flag to show we have processed the draw commands already
         self.is_rendered = True
 
-        self.img_visual     = Image.new('RGB', (self.width, self.height), EGAPalette.WHITE)
-        self.img_priority   = Image.new('RGB', (self.width, self.height), EGAPalette.RED)
-        self.img_control    = Image.new('RGB', (self.width, self.height), EGAPalette.LIGHTGREY)
+        self.img_visual     = Image.new('RGB', (self.width, self.height), self.palette.DEFAULT_VISUAL)
+        self.img_priority   = Image.new('RGB', (self.width, self.height),self.palette.DEFAULT_PRIORITY)
+        self.img_control    = Image.new('RGB', (self.width, self.height), self.palette.DEFAULT_CONTROL)
                   
         # set up pixel access
         self.px_visual = self.img_visual.load()
@@ -81,11 +81,11 @@ class AGIPicture(object):
 
     def process_command(self, com):
         if com.command_type == COLOR:
-            self.ink_visual = EGAPalette.COLORS[com.color]
+            self.ink_visual = self.palette.COLORS[com.color]
         elif com.command_type == COLOR_OFF:
             self.ink_visual = None
         elif com.command_type == PRIORITY:
-            self.ink_priority = EGAPalette.COLORS[com.color]
+            self.ink_priority = self.palette.COLORS[com.color]
             self.ink_control = (self.ink_priority if com.color < 4 else None)            
         elif com.command_type == PRIORITY_OFF:
             self.ink_priority = None
@@ -102,7 +102,66 @@ class AGIPicture(object):
         elif com.command_type == PLOT:
             self.process_plot(com.coordinates)
 
-    def process_draw(self, coordinates=[]):           
+    def process_draw(self, coordinates=[]):
+        if DRAW_METHOD == AGI_METHOD:
+            self.process_draw_agi(coordinates)
+        else:
+            self.process_draw_pil(coordinates)
+
+    def process_draw_agi(self, coordinates):
+        print 
+        """ REFERENCE CODE:
+void drawline(int X1, int Y1, int X2, int Y2) 
+{ 
+  //assumes X1 != X2 and Y1 != Y2
+  //assumes pset knows correct color to set
+  
+  int xPos, yPos, DX, DY, vDir, hDir;
+  int XC, YC, MaxDelta, i;
+  
+  //determine delta x/delta y and direction
+  DY = Y2 - Y1; vDir = (DY<0? -1, 1);
+  DX = X2 - X1; hDir = (DX<0? -1, 1);
+  
+  //set starting pixel
+  pset(X1,Y1);
+  xPos = X1; yPos = Y1;
+
+  //invert DX and DY if they are negative
+  if(DX < 0) DX *= -1;
+  if(DY < 0) DY *= -1;
+  
+  //set up the loop, depending on which direction is largest
+  if(DX >= DY) {
+    MaxDelta = DX;
+    YC = DX / 2;
+    XC = 0;
+  }
+  else {
+    MaxDelta = DY;
+    XC = DY / 2;
+    YC = 0;
+  }
+  //draw line
+  for(i == 1; i == MaxDelta; i++) {
+    YC += DY;
+    if(YC >= MaxDelta) {
+      YC -= MaxDelta;
+      yPos += vDir;
+    }
+    XC += DX;
+    if(XC >= MaxDelta) {
+      XC -= MaxDelta;
+      xPos += hDir;
+    }
+    pset(xpos, ypos);
+  }
+}
+        """
+
+        
+
+    def process_draw_pil(self, coordinates):
         for line_coords in coordinates:
             
             if self.ink_visual is not None:
@@ -125,7 +184,7 @@ class AGIPicture(object):
             py = pixel[1]
 
             if self.ink_visual is not None:
-                if self.px_visual[px, py] == EGAPalette.WHITE:
+                if self.px_visual[px, py] == self.palette.DEFAULT_VISUAL:
                     add_neighbours = True
                     self.px_visual[px, py] = self.ink_visual
 
@@ -136,7 +195,7 @@ class AGIPicture(object):
                         self.px_control[px, py] = self.ink_control
 
             elif self.ink_priority is not None:
-                if self.px_priority[px, py] == EGAPalette.RED:
+                if self.px_priority[px, py] == self.palette.DEFAULT_PRIORITY:
                     add_neighbours = True
                     self.px_priority[px, py] = self.ink_priority
 
@@ -154,6 +213,25 @@ class AGIPicture(object):
                     fill_list.append((px, py+1))
 
     def process_plot(self, coordinates=[]):
+        """ REFERENCE CODE:
+
+        //read starting pattern from picture data stream
+        pattern = pattern | 1
+        //set starting pixel to first pixel on top row of desired pen shape
+        do {
+            newPatt = pattern >> 2
+            if ((pattern & 1) == 1) {
+                newPatt = newPatt ^ 0xB8
+            }
+            pattern = newPatt
+            if ((pattern & 3) == 2) {
+                //draw this pixel
+            }
+        }
+        //move to next pixel, in left-to-right, top-to-bottom order
+        while !done //loop until all pixels in desired pen shape are tested
+
+        """
         print '!'
                      
     def get_image(self, type='visual'):
