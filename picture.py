@@ -37,7 +37,10 @@ class AGIPicture(object):
                         self.add_picture_command(bit_buffer)
                     bit_buffer = byte
                 else:
-                    bit_buffer = bit_buffer + byte
+                    if bit_buffer is not None:
+                        bit_buffer = bit_buffer + byte
+                    else:
+                        bit_buffer = byte
             else:
                 if bit_buffer is not None:
                     self.add_picture_command(bit_buffer)       

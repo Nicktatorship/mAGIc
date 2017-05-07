@@ -12,12 +12,11 @@ def read_item(struct_type, stream):
     return value
 
 def swap_byte_order(pair):
-    print '-'+str(pair)
     return ((ord(pair[1]) << 8) + ord(pair[0]))
 
 class AGIView():
     def __init__(self, filename=None):
-        self.scale_x     = 2
+        self.scale_x     = 4
         self.scale_y     = 2
         self.loops       = []
         self.stream      = open(filename, "rb")
@@ -56,10 +55,10 @@ class AGIView():
             build_loop = AGIViewLoop(loop_buffer)
             self.loops.append(build_loop)
 
-    def get_all_frames(self):
+    def get_all_frames(self, upscaled=False):
         looplist = []
         for loop in self.loops:
-            looplist.append(loop.get_frames())
+            looplist.append(loop.get_frames(upscaled))
         return looplist
 
 class AGIViewLoop():
@@ -80,10 +79,10 @@ class AGIViewLoop():
             build_cel = AGIViewCel(cel_buffer)
             self.cels.append(build_cel)
 
-    def get_frames(self):
+    def get_frames(self, upscaled=False):
         cel_list = []
         for cel in self.cels:
-            cel_list.append(cel.get_frame())
+            cel_list.append(cel.get_frame(upscaled))
 
         return cel_list
 
@@ -122,8 +121,11 @@ class AGIViewCel():
                 
         self.is_rendered = True
 
-    def get_frame(self):
-        return self.cel_sheet
+    def get_frame(self, upscaled=False):
+        if upscaled:
+            return self.get_upscaled()
+        else:
+            return self.cel_sheet
                 
     def get_upscaled(self):
         return self.cel_sheet.resize((self.width * self.scale_x, self.height * self.scale_y))
@@ -139,7 +141,7 @@ def run():
     viewtest = AGIView("view.220")
     viewtest = AGIView("view.000")
 
-    fullsheet = viewtest.get_all_frames()
+    fullsheet = viewtest.get_all_frames(true)
     fullsheet[3][3].save('testfile.png')
 
     
